@@ -1,0 +1,45 @@
+{
+  "name": "Qatar Early Warning System",
+  "short_name": "EWS",
+  "description": "Real-time threat intelligence dashboard monitoring signals from Telegram, RSS news feeds, and FAA NOTAMs for Qatar and the Gulf region.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#050d1a",
+  "background_color": "#050d1a",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["security", "news"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Live Dashboard",
+      "short_name": "Dashboard",
+      "description": "Open the threat monitoring dashboard",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false
+}

@@ -1,0 +1,16 @@
+# Environment variables — never commit
+backend/.env
+
+# Dependencies
+backend/node_modules/
+
+# Logs
+*.log
+/tmp/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/

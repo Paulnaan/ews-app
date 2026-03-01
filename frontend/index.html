@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0d0f" />
+  <meta name="description" content="Qatar Early Warning System — Real-time threat monitoring dashboard" />
+  <title>EWS — Qatar Early Warning System</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Oswald:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Palette */
+      --bg-base:       #0a0d0f;
+      --bg-panel:      #0f1418;
+      --bg-card:       #141a1f;
+      --bg-card-hover: #1a2229;
+      --bg-input:      #0d1216;
+      --border:        #1e2a33;
+      --border-bright: #2a3d4d;
+
+      /* Text */
+      --text-primary:  #d4dde5;
+      --text-secondary:#7a909f;
+      --text-dim:      #4a5f6e;
+      --text-mono:     #8db4c8;
+
+      /* Threat levels */
+      --green:         #00e676;
+      --green-dim:     #00401f;
+      --green-glow:    rgba(0, 230, 118, 0.25);
+      --yellow:        #ffd600;
+      --yellow-dim:    #3d3300;
+      --yellow-glow:   rgba(255, 214, 0, 0.25);
+      --orange:        #ff6d00;
+      --orange-dim:    #3d1a00;
+      --orange-glow:   rgba(255, 109, 0, 0.30);
+      --red:           #ff1744;
+      --red-dim:       #3d0010;
+      --red-glow:      rgba(255, 23, 68, 0.35);
+
+      /* Source badge colors */
+      --badge-rss:      #0288d1;
+      --badge-telegram: #0077b6;
+      --badge-notam:    #7b2d8b;
+      --badge-twitter:  #1a6b8a;
+
+      /* Score bar */
+      --score-track:   #1a2530;
+
+      /* Layout */
+      --header-h:      64px;
+      --sidebar-w:     260px;
+      --radius:        6px;
+      --radius-lg:     10px;
+
+      /* Font stacks */
+      --font-ui:       'Inter', system-ui, sans-serif;
+      --font-head:     'Oswald', 'Inter', sans-serif;
+      --font-mono:     'Share Tech Mono', 'Courier New', monospace;
+    }
+
+    html { font-size: 15px; scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SCROLLBARS
+    ═══════════════════════════════════════════════════════════════ */
+    ::-webkit-scrollbar             { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track       { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb       { background: var(--border-bright); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       KEYFRAMES
+    ═══════════════════════════════════════════════════════════════ */
+    @keyframes pulse-green  { 0%,100%{box-shadow:0 0 0 0 var(--green-glow)} 50%{box-shadow:0 0 28px 8px var(--green-glow)} }
+    @keyframes pulse-yellow { 0%,100%{box-shadow:0 0 0 0 var(--yellow-glow)} 50%{box-shadow:0 0 28px 8px var(--yellow-glow)} }
+    @keyframes pulse-orange { 0%,100%{box-shadow:0 0 0 0 var(--orange-glow)} 50%{box-shadow:0 0 36px 12px var(--orange-glow)} }
+    @keyframes pulse-red    { 0%,100%{box-shadow:0 0 0 0 var(--red-glow)}    50%{box-shadow:0 0 48px 16px var(--red-glow)} }
+
+    @keyframes scanline {
+      0%   { transform: translateY(-100%); }
+      100% { transform: translateY(100vh); }
+    }
+
+    @keyframes blink {
+      0%,49%{ opacity:1; } 50%,100%{ opacity:0; }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity:0; transform:translateY(12px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position:  400px 0; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SCANLINE OVERLAY (aesthetic)
+    ═══════════════════════════════════════════════════════════════ */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       HEADER
+    ═══════════════════════════════════════════════════════════════ */
+    #header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: rgba(10, 13, 15, 0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      border: 2px solid currentColor;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: -1px;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-family: var(--font-head);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .header-subtitle {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Live clock */
+    #clock {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-mono);
+      letter-spacing: 1px;
+    }
+
+    /* Connection indicator */
+    .conn-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      flex-shrink: 0;
+    }
+    .conn-dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+    /* Push button */
+    #push-btn {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: transparent;
+      border: 1px solid var(--border-bright);
+      color: var(--text-secondary);
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    #push-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+    #push-btn.active { border-color: var(--green); color: var(--green); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       LAYOUT
+    ═══════════════════════════════════════════════════════════════ */
+    #layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      grid-template-rows: auto;
+      padding-top: var(--header-h);
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SIDEBAR
+    ═══════════════════════════════════════════════════════════════ */
+    #sidebar {
+      position: sticky;
+      top: var(--header-h);
+      height: calc(100vh - var(--header-h));
+      overflow-y: auto;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sidebar-section-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      padding: 0 4px;
+      margin-bottom: 6px;
+    }
+
+    /* ─── Threat Level Banner ─── */
+    #threat-banner {
+      border-radius: var(--radius-lg);
+      padding: 18px 14px;
+      text-align: center;
+      border: 2px solid transparent;
+      transition: all 0.6s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #threat-banner::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    #threat-banner.GREEN  {
+      background: var(--green-dim);
+      border-color: var(--green);
+      color: var(--green);
+      animation: pulse-green 3s ease-in-out infinite;
+    }
+    #threat-banner.YELLOW {
+      background: var(--yellow-dim);
+      border-color: var(--yellow);
+      color: var(--yellow);
+      animation: pulse-yellow 2.5s ease-in-out infinite;
+    }
+    #threat-banner.ORANGE {
+      background: var(--orange-dim);
+      border-color: var(--orange);
+      color: var(--orange);
+      animation: pulse-orange 2s ease-in-out infinite;
+    }
+    #threat-banner.RED {
+      background: var(--red-dim);
+      border-color: var(--red);
+      color: var(--red);
+      animation: pulse-red 1.2s ease-in-out infinite;
+    }
+
+    .threat-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin-bottom: 6px;
+    }
+
+    .threat-level-text {
+      font-family: var(--font-head);
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .threat-updated {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      opacity: 0.5;
+      margin-top: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── Score Bar ─── */
+    #score-section { }
+
+    .score-bar-wrap {
+      background: var(--score-track);
+      border-radius: 4px;
+      height: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    #score-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s cubic-bezier(0.4,0,0.2,1), background 0.6s;
+      width: 0%;
+    }
+
+    .score-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 5px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-dim);
+    }
+
+    #score-value {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-mono);
+      text-align: right;
+      margin-bottom: 5px;
+    }
+
+    /* ─── Stats Grid ─── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 8px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* ─── Signal Toggles ─── */
+    .signal-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .signal-toggle:hover { background: var(--bg-card-hover); border-color: var(--border-bright); }
+
+    .signal-toggle.active { border-color: var(--text-mono); }
+
+    .signal-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .signal-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .signal-toggle-name {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      color: var(--text-primary);
+    }
+
+    .signal-toggle-count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1px 7px;
+      min-width: 28px;
+      text-align: center;
+    }
+
+    /* Toggle switch */
+    .toggle-switch {
+      position: relative;
+      width: 32px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input { display: none; }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 9px;
+      transition: background 0.2s;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 12px;
+      height: 12px;
+      background: var(--text-dim);
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+
+    .signal-toggle.active .toggle-track { background: var(--text-mono); }
+    .signal-toggle.active .toggle-thumb { transform: translateX(14px); background: #fff; }
+
+    /* ─── Refresh Button ─── */
+    #refresh-btn {
+      width: 100%;
+      padding: 9px;
+      background: transparent;
+      border: 1px solid var(--border-bright);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    #refresh-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+    #refresh-btn:active { transform: scale(0.98); }
+    #refresh-btn.spinning .refresh-icon { animation: spin 1s linear infinite; }
+
+    .refresh-icon { display: inline-block; font-size: 12px; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MAIN CONTENT
+    ═══════════════════════════════════════════════════════════════ */
+    #main {
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100vh - var(--header-h));
+      padding: 16px;
+      gap: 14px;
+    }
+
+    /* ─── NOTAM Alert Bar ─── */
+    #notam-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      display: none;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    #notam-bar.visible { display: flex; }
+
+    .notam-bar-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .notam-bar-content { flex: 1; min-width: 0; }
+
+    .notam-bar-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--orange);
+      margin-bottom: 4px;
+    }
+
+    #notam-scroll {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ─── Tabs ─── */
+    .tabs-bar {
+      display: flex;
+      gap: 2px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      padding: 7px 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover { color: var(--text-secondary); background: var(--bg-card); }
+
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border-bright);
+    }
+
+    .tab-count {
+      font-size: 9px;
+      background: var(--border);
+      border-radius: 8px;
+      padding: 1px 5px;
+      color: var(--text-dim);
+    }
+
+    .tab-btn.active .tab-count { background: var(--border-bright); color: var(--text-secondary); }
+
+    /* ─── Feed List ─── */
+    #feed-container { flex: 1; }
+
+    #feed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* ─── Feed Item Card ─── */
+    .feed-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px;
+      transition: all 0.18s;
+      animation: fadeInUp 0.3s ease both;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feed-item::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+    }
+
+    .feed-item.score-critical::before { background: var(--red); }
+    .feed-item.score-high::before     { background: var(--orange); }
+    .feed-item.score-medium::before   { background: var(--yellow); }
+    .feed-item.score-low::before      { background: var(--text-dim); }
+    .feed-item.score-none::before     { background: transparent; }
+
+    .feed-item:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-bright);
+      transform: translateY(-1px);
+    }
+
+    .feed-item-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+      flex-wrap: wrap;
+    }
+
+    /* Source badge */
+    .source-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 3px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .source-badge.rss      { background: rgba(2,136,209,0.2);  color: #4db6e8; border: 1px solid rgba(2,136,209,0.3); }
+    .source-badge.telegram { background: rgba(0,119,182,0.2);  color: #4fc3f7; border: 1px solid rgba(0,119,182,0.3); }
+    .source-badge.notam    { background: rgba(123,45,139,0.2); color: #ce93d8; border: 1px solid rgba(123,45,139,0.3); }
+    .source-badge.twitter  { background: rgba(26,107,138,0.2); color: #4dd0e1; border: 1px solid rgba(26,107,138,0.3); }
+
+    /* Score pill */
+    .score-pill {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid transparent;
+      flex-shrink: 0;
+    }
+
+    .score-pill.critical { background: rgba(255,23,68,0.15);  color: var(--red);    border-color: rgba(255,23,68,0.3); }
+    .score-pill.high     { background: rgba(255,109,0,0.15);  color: var(--orange); border-color: rgba(255,109,0,0.3); }
+    .score-pill.medium   { background: rgba(255,214,0,0.1);   color: var(--yellow); border-color: rgba(255,214,0,0.25);}
+    .score-pill.low      { background: rgba(100,130,150,0.1); color: var(--text-dim);border-color:var(--border); }
+
+    .feed-source-name {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-dim);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .feed-timestamp {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Title */
+    .feed-title {
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      line-height: 1.4;
+      margin-bottom: 5px;
+    }
+
+    .feed-title a {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .feed-title a:hover { color: var(--text-mono); }
+
+    /* Summary */
+    .feed-summary {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Keywords */
+    .feed-keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+    }
+
+    .keyword-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      background: rgba(141,180,200,0.08);
+      border: 1px solid rgba(141,180,200,0.15);
+      color: var(--text-mono);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    /* ─── Empty State ─── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+
+    .empty-state-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+
+    /* ─── Loading Skeleton ─── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+      background-size: 400px 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--radius);
+    }
+
+    .skel-card {
+      height: 80px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+    }
+
+    /* ─── Loader spinner ─── */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--text-mono);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+
+    /* ─── Toast ─── */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--bg-card);
+      border: 1px solid var(--border-bright);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      padding: 10px 18px;
+      border-radius: var(--radius-lg);
+      z-index: 9000;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       RESPONSIVE — MOBILE
+    ═══════════════════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 100%; --header-h: 56px; }
+
+      #layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+      }
+
+      #sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        flex-direction: row;
+        flex-wrap: wrap;
+        overflow-x: auto;
+        padding: 12px;
+        gap: 10px;
+      }
+
+      #sidebar > * { flex-shrink: 0; }
+
+      #threat-banner { min-width: 140px; padding: 12px 10px; }
+      .threat-level-text { font-size: 24px; }
+
+      #score-section { min-width: 180px; flex: 1; }
+
+      .stats-grid { grid-template-columns: repeat(4, 1fr); min-width: 260px; }
+
+      .signals-section { min-width: 240px; }
+      .signal-toggles  { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; }
+      .signal-toggle   { width: auto; flex: 1; min-width: 100px; }
+
+      #refresh-btn { display: none; }
+
+      #main { padding: 10px; gap: 10px; }
+
+      .tabs-bar { overflow-x: auto; border-radius: var(--radius); }
+      .tab-btn  { font-size: 9px; padding: 6px 4px; }
+
+      .header-title { font-size: 15px; letter-spacing: 1px; }
+      #clock { display: none; }
+
+      #push-btn { font-size: 9px; padding: 4px 8px; }
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .feed-summary { -webkit-line-clamp: 1; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       HEADER
+  ═══════════════════════════════════════════════════════════════ -->
+  <header id="header">
+    <div class="header-left">
+      <div class="logo-mark" id="logo-mark">EWS</div>
+      <div>
+        <div class="header-title">Qatar Early Warning System</div>
+        <div class="header-subtitle">Real-Time Threat Intelligence Dashboard</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div id="clock" aria-live="polite">--:--:-- UTC</div>
+      <div class="conn-dot" id="conn-dot" title="Connection status"></div>
+      <button id="push-btn" aria-label="Enable push notifications">&#9675; Enable Alerts</button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MAIN LAYOUT GRID
+  ═══════════════════════════════════════════════════════════════ -->
+  <div id="layout">
+
+    <!-- ─────────────────────────────────────────────────────────────
+         SIDEBAR
+    ───────────────────────────────────────────────────────────── -->
+    <aside id="sidebar" aria-label="Threat status panel">
+
+      <!-- Threat Level Banner -->
+      <div>
+        <div class="sidebar-section-label">Threat Level</div>
+        <div id="threat-banner" class="GREEN" role="status" aria-live="polite" aria-atomic="true">
+          <div class="threat-label">Current Status</div>
+          <div class="threat-level-text" id="threat-level-text">GREEN</div>
+          <div class="threat-updated" id="threat-updated">Initializing…</div>
+        </div>
+      </div>
+
+      <!-- Threat Score Bar -->
+      <div id="score-section">
+        <div class="sidebar-section-label">Aggregate Threat Score</div>
+        <div id="score-value" aria-label="Threat score">Score: 0</div>
+        <div class="score-bar-wrap" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Threat score bar">
+          <div id="score-bar-fill"></div>
+        </div>
+        <div class="score-bar-labels">
+          <span>LOW</span>
+          <span>MED</span>
+          <span>HIGH</span>
+          <span>CRIT</span>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div>
+        <div class="sidebar-section-label">Collection Stats</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-signals">—</div>
+            <div class="stat-label">Signals</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-notams">—</div>
+            <div class="stat-label">NOTAMs</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-feeds">—</div>
+            <div class="stat-label">Feeds</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-subs">—</div>
+            <div class="stat-label">Subs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signal Type Toggles -->
+      <div class="signals-section">
+        <div class="sidebar-section-label">Signal Sources</div>
+        <div class="signal-toggles" style="display:flex;flex-direction:column;gap:6px;">
+
+          <div class="signal-toggle active" data-signal="rss" role="switch" aria-checked="true" tabindex="0" aria-label="Toggle RSS news feeds">
+            <div class="signal-toggle-left">
+              <div class="signal-dot" style="background:#4db6e8;box-shadow:0 0 6px #4db6e8;"></div>
+              <span class="signal-toggle-name">RSS News</span>
+              <span class="signal-toggle-count" id="count-rss">0</span>
+            </div>
+            <label class="toggle-switch" aria-hidden="true">
+              <input type="checkbox" checked />
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+
+          <div class="signal-toggle active" data-signal="telegram" role="switch" aria-checked="true" tabindex="0" aria-label="Toggle Telegram channels">
+            <div class="signal-toggle-left">
+              <div class="signal-dot" style="background:#4fc3f7;box-shadow:0 0 6px #4fc3f7;"></div>
+              <span class="signal-toggle-name">Telegram</span>
+              <span class="signal-toggle-count" id="count-telegram">0</span>
+            </div>
+            <label class="toggle-switch" aria-hidden="true">
+              <input type="checkbox" checked />
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+
+          <div class="signal-toggle active" data-signal="notam" role="switch" aria-checked="true" tabindex="0" aria-label="Toggle FAA NOTAMs">
+            <div class="signal-toggle-left">
+              <div class="signal-dot" style="background:#ce93d8;box-shadow:0 0 6px #ce93d8;"></div>
+              <span class="signal-toggle-name">NOTAMs</span>
+              <span class="signal-toggle-count" id="count-notam">0</span>
+            </div>
+            <label class="toggle-switch" aria-hidden="true">
+              <input type="checkbox" checked />
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+
+          <div class="signal-toggle active" data-signal="twitter" role="switch" aria-checked="true" tabindex="0" aria-label="Toggle Twitter signals">
+            <div class="signal-toggle-left">
+              <div class="signal-dot" style="background:#4dd0e1;box-shadow:0 0 6px #4dd0e1;"></div>
+              <span class="signal-toggle-name">Twitter</span>
+              <span class="signal-toggle-count" id="count-twitter">0</span>
+            </div>
+            <label class="toggle-switch" aria-hidden="true">
+              <input type="checkbox" checked />
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Refresh Button -->
+      <button id="refresh-btn" aria-label="Manually refresh data">
+        <span class="refresh-icon">&#8635;</span>
+        <span>Refresh Now</span>
+      </button>
+
+    </aside>
+
+    <!-- ─────────────────────────────────────────────────────────────
+         MAIN CONTENT
+    ───────────────────────────────────────────────────────────── -->
+    <main id="main">
+
+      <!-- NOTAM Alert Bar -->
+      <div id="notam-bar" role="alert" aria-live="polite">
+        <div class="notam-bar-icon">&#9992;</div>
+        <div class="notam-bar-content">
+          <div class="notam-bar-title">&#9650; Active NOTAMs — OIIX / OIKK / OIGG / OTBD</div>
+          <div id="notam-scroll">No active NOTAMs</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <nav class="tabs-bar" role="tablist" aria-label="Feed filter tabs">
+        <button class="tab-btn active" role="tab" aria-selected="true"  data-tab="all"      aria-controls="feed-list">
+          All <span class="tab-count" id="tab-count-all">0</span>
+        </button>
+        <button class="tab-btn"        role="tab" aria-selected="false" data-tab="telegram" aria-controls="feed-list">
+          Telegram <span class="tab-count" id="tab-count-telegram">0</span>
+        </button>
+        <button class="tab-btn"        role="tab" aria-selected="false" data-tab="twitter"  aria-controls="feed-list">
+          Twitter <span class="tab-count" id="tab-count-twitter">0</span>
+        </button>
+        <button class="tab-btn"        role="tab" aria-selected="false" data-tab="notam"    aria-controls="feed-list">
+          NOTAMs <span class="tab-count" id="tab-count-notam">0</span>
+        </button>
+        <button class="tab-btn"        role="tab" aria-selected="false" data-tab="rss"      aria-controls="feed-list">
+          News <span class="tab-count" id="tab-count-rss">0</span>
+        </button>
+      </nav>
+
+      <!-- Feed Items -->
+      <div id="feed-container">
+        <div id="feed-list" role="feed" aria-label="Signal feed" aria-busy="true">
+
+          <!-- Skeleton loaders shown on initial load -->
+          <div class="skeleton skel-card"></div>
+          <div class="skeleton skel-card"></div>
+          <div class="skeleton skel-card"></div>
+          <div class="skeleton skel-card"></div>
+          <div class="skeleton skel-card"></div>
+
+        </div>
+      </div>
+
+    </main>
+  </div><!-- /#layout -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       TOAST NOTIFICATION
+  ═══════════════════════════════════════════════════════════════ -->
+  <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    'use strict';
+
+    // ═══════════════════════════════════════════════════════════════
+    // CONFIG
+    // ═══════════════════════════════════════════════════════════════
+    const POLL_MS   = 30000; // 30 seconds
+    const SCORE_MAX = 120;   // score at which bar is 100%
+
+    // ═══════════════════════════════════════════════════════════════
+    // CLIENT-SIDE KEYWORD LIST  (mirrors server scoring)
+    // ═══════════════════════════════════════════════════════════════
+    const KW = {
+      critical: [
+        'missile','ballistic','airstrike','air strike','bomb','bombing',
+        'explosion','nuclear','attack','war declared','invasion','evacuation',
+        'موشک','بالستیک','حمله هوایی','بمب','انفجار','هسته‌ای','جنگ','تخلیه',
+      ],
+      high: [
+        'military strike','airspace closure','airspace closed','intercept',
+        'warship','fighter jet','drone attack','troops deployed','conflict',
+        'armed forces','offensive','retaliation','threat level',
+        'بسته شدن حریم هوایی','رهگیری','ناوجنگی','جنگنده','حمله پهپاد',
+        'نیروهای مسلح','تهاجم','تلافی','سطح تهدید',
+      ],
+      medium: [
+        'military exercise','drill','warning','alert','tension','protest',
+        'sanctions','embargo','detained','arrested','demonstration','unrest',
+        'رزمایش','مانور','هشدار','تنش','اعتراض','تحریم','بازداشت','ناآرامی',
+      ],
+      low: [
+        'iran','qatar','doha','gulf','persian gulf','strait of hormuz',
+        'irgc','revolutionary guard','hamas','hezbollah','houthi','proxy',
+        'ایران','قطر','دوحه','خلیج','خلیج فارس','تنگه هرمز',
+        'سپاه','حماس','حزب‌الله','حوثی',
+      ],
+    };
+
+    function matchKeywords(text) {
+      if (!text) return [];
+      const lower   = text.toLowerCase();
+      const matched = new Set();
+      for (const terms of Object.values(KW)) {
+        for (const t of terms) {
+          if (lower.includes(t.toLowerCase())) matched.add(t);
+        }
+      }
+      return [...matched].slice(0, 7);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // APP STATE
+    // ═══════════════════════════════════════════════════════════════
+    const state = {
+      signals:      [],
+      notams:       [],
+      threatLevel:  'GREEN',
+      activeTab:    'all',
+      enabledTypes: new Set(['rss', 'telegram', 'notam', 'twitter']),
+      firstLoad:    true,
+      pushSubscribed: false,
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // DOM HELPERS
+    // ═══════════════════════════════════════════════════════════════
+    const $  = id  => document.getElementById(id);
+    const $$ = sel => document.querySelectorAll(sel);
+
+    function escHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CLOCK
+    // ═══════════════════════════════════════════════════════════════
+    function tickClock() {
+      const n = new Date();
+      const pad = v => String(v).padStart(2,'0');
+      $('clock').textContent =
+        `${pad(n.getUTCHours())}:${pad(n.getUTCMinutes())}:${pad(n.getUTCSeconds())} UTC`;
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    // ═══════════════════════════════════════════════════════════════
+    // TOAST
+    // ═══════════════════════════════════════════════════════════════
+    let _toastTimer;
+    function showToast(msg, ms = 3500) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CONNECTION DOT
+    // ═══════════════════════════════════════════════════════════════
+    function setOnline(online) {
+      const d = $('conn-dot');
+      d.classList.toggle('offline', !online);
+      d.title = online ? 'Connected' : 'Connection lost';
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SCORE HELPERS
+    // ═══════════════════════════════════════════════════════════════
+    function scoreTier(score) {
+      if (score >= 25) return 'critical';
+      if (score >= 12) return 'high';
+      if (score >= 5)  return 'medium';
+      if (score >= 1)  return 'low';
+      return 'none';
+    }
+
+    const LEVEL_COLOR = {
+      GREEN:  'var(--green)',
+      YELLOW: 'var(--yellow)',
+      ORANGE: 'var(--orange)',
+      RED:    'var(--red)',
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // THREAT BANNER
+    // ═══════════════════════════════════════════════════════════════
+    function updateThreatBanner(level, lastUpdated) {
+      const banner  = $('threat-banner');
+      const logo    = $('logo-mark');
+
+      banner.classList.remove('GREEN','YELLOW','ORANGE','RED');
+      banner.classList.add(level);
+      $('threat-level-text').textContent = level;
+
+      const col = LEVEL_COLOR[level] || 'var(--green)';
+      logo.style.color       = col;
+      logo.style.borderColor = col;
+
+      if (lastUpdated) {
+        const d = new Date(lastUpdated);
+        const pad = v => String(v).padStart(2,'0');
+        $('threat-updated').textContent =
+          `Updated ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SCORE BAR
+    // ═══════════════════════════════════════════════════════════════
+    function updateScoreBar(signals, level) {
+      const total = signals.reduce((s, i) => s + (i.score || 0), 0);
+      const pct   = Math.min((total / SCORE_MAX) * 100, 100);
+      const fill  = $('score-bar-fill');
+
+      $('score-value').textContent = `Score: ${total}`;
+      fill.style.width      = `${pct.toFixed(1)}%`;
+      fill.style.background = LEVEL_COLOR[level] || 'var(--green)';
+      fill.parentElement.setAttribute('aria-valuenow', Math.round(pct));
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // STATS
+    // ═══════════════════════════════════════════════════════════════
+    function updateStats(counts) {
+      const map = {
+        signals:     'stat-signals',
+        notams:      'stat-notams',
+        feeds:       'stat-feeds',
+        subscribers: 'stat-subs',
+      };
+      for (const [key, id] of Object.entries(map)) {
+        if (counts[key] !== undefined) $(id).textContent = counts[key];
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TAB + TOGGLE COUNTS
+    // ═══════════════════════════════════════════════════════════════
+    function updateCounts(items) {
+      const totals = { all: items.length, rss: 0, telegram: 0, notam: 0, twitter: 0 };
+      for (const item of items) {
+        if (totals[item.type] !== undefined) totals[item.type]++;
+      }
+      for (const [key, val] of Object.entries(totals)) {
+        const el = $(`tab-count-${key}`);
+        if (el) el.textContent = val;
+      }
+      $('count-rss').textContent      = totals.rss;
+      $('count-telegram').textContent = totals.telegram;
+      $('count-notam').textContent    = totals.notam;
+      $('count-twitter').textContent  = totals.twitter;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TIME AGO
+    // ═══════════════════════════════════════════════════════════════
+    function timeAgo(iso) {
+      if (!iso) return '—';
+      const diff = Date.now() - new Date(iso).getTime();
+      const m = Math.floor(diff / 60000);
+      if (m <  1)  return 'just now';
+      if (m < 60)  return `${m}m ago`;
+      const h = Math.floor(m / 60);
+      if (h < 24)  return `${h}h ago`;
+      return `${Math.floor(h / 24)}d ago`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // NOTAM BAR
+    // ═══════════════════════════════════════════════════════════════
+    function updateNotamBar(notams) {
+      const bar  = $('notam-bar');
+      const text = $('notam-scroll');
+      if (!notams || !notams.length) {
+        bar.classList.remove('visible');
+        return;
+      }
+      bar.classList.add('visible');
+      text.textContent = notams
+        .slice(0, 6)
+        .map(n => (n.title || n.summary || 'NOTAM').slice(0,120))
+        .join('   ▪   ');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // RENDER SINGLE FEED ITEM
+    // ═══════════════════════════════════════════════════════════════
+    function renderItem(item) {
+      const tier    = scoreTier(item.score || 0);
+      const type    = (item.type || 'rss').toLowerCase();
+      const fullText = `${item.title || ''} ${item.summary || ''}`;
+      const keywords = matchKeywords(fullText);
+
+      const el = document.createElement('article');
+      el.className = `feed-item score-${tier}`;
+      el.setAttribute('aria-label', item.title || 'Signal');
+
+      const titleInner = item.url
+        ? `<a href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escHtml(item.title || '(no title)')}</a>`
+        : escHtml(item.title || '(no title)');
+
+      const scorePill = item.score > 0
+        ? `<span class="score-pill ${tier}" title="Threat score">&#9650; ${item.score}</span>`
+        : '';
+
+      const keywordTags = keywords.length
+        ? `<div class="feed-keywords">${keywords.map(k=>`<span class="keyword-tag">${escHtml(k)}</span>`).join('')}</div>`
+        : '';
+
+      const icaoTag = item.icao
+        ? `<span class="source-badge notam">${escHtml(item.icao)}</span>`
+        : '';
+
+      el.innerHTML = `
+        <div class="feed-item-header">
+          <span class="source-badge ${escHtml(type)}">${escHtml(type.toUpperCase())}</span>
+          ${icaoTag}
+          ${scorePill}
+          <span class="feed-source-name">${escHtml(item.source || '')}</span>
+          <span class="feed-timestamp" title="${escHtml(item.published || '')}">${timeAgo(item.published)}</span>
+        </div>
+        <div class="feed-title">${titleInner}</div>
+        ${item.summary ? `<div class="feed-summary">${escHtml(item.summary)}</div>` : ''}
+        ${keywordTags}
+      `;
+      return el;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // RENDER FEED LIST
+    // ═══════════════════════════════════════════════════════════════
+    function renderFeedList() {
+      const list = $('feed-list');
+
+      // Combine signals + notams, filter by enabled types and active tab
+      let items = [...state.signals, ...state.notams].filter(item => {
+        if (!state.enabledTypes.has(item.type)) return false;
+        if (state.activeTab === 'all') return true;
+        return item.type === state.activeTab;
+      });
+
+      // Sort: score desc, then newest first
+      items.sort((a, b) => {
+        const sd = (b.score || 0) - (a.score || 0);
+        if (sd !== 0) return sd;
+        return new Date(b.published || 0) - new Date(a.published || 0);
+      });
+
+      list.setAttribute('aria-busy', 'false');
+
+      if (!items.length) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#128247;</div>
+            <div>No signals match this filter</div>
+          </div>`;
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      items.forEach(item => frag.appendChild(renderItem(item)));
+      list.innerHTML = '';
+      list.appendChild(frag);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // API FETCHES
+    // ═══════════════════════════════════════════════════════════════
+    async function apiFetch(path) {
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
+      return res.json();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // POLL CYCLE
+    // ═══════════════════════════════════════════════════════════════
+    async function pollAll() {
+      try {
+        const [status, signals, notams] = await Promise.all([
+          apiFetch('/api/status'),
+          apiFetch('/api/signals?limit=300'),
+          apiFetch('/api/notams'),
+        ]);
+
+        setOnline(true);
+
+        const prevLevel   = state.threatLevel;
+        state.threatLevel = status.threatLevel || 'GREEN';
+        state.signals     = signals  || [];
+        state.notams      = notams   || [];
+
+        updateThreatBanner(state.threatLevel, status.lastUpdated);
+        updateScoreBar(state.signals, state.threatLevel);
+        updateStats(status.counts || {});
+        updateCounts([...state.signals, ...state.notams]);
+        updateNotamBar(state.notams);
+
+        // Remove skeleton on first successful load
+        if (state.firstLoad) state.firstLoad = false;
+
+        renderFeedList();
+
+        if (prevLevel !== 'GREEN' && prevLevel !== state.threatLevel) {
+          showToast(`⚠ Threat level: ${prevLevel} → ${state.threatLevel}`, 6000);
+        } else if (state.threatLevel !== 'GREEN' && prevLevel !== state.threatLevel) {
+          showToast(`⚠ Threat level elevated to ${state.threatLevel}`, 6000);
+        }
+
+      } catch (err) {
+        console.error('[EWS] Poll error:', err);
+        setOnline(false);
+
+        if (state.firstLoad) {
+          $('feed-list').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">&#9888;</div>
+              <div>Cannot reach backend</div>
+              <div style="margin-top:8px;font-size:10px;opacity:0.45;">${escHtml(err.message)}</div>
+            </div>`;
+          state.firstLoad = false;
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TABS
+    // ═══════════════════════════════════════════════════════════════
+    $$('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $$('.tab-btn').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected','false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected','true');
+        state.activeTab = btn.dataset.tab;
+        renderFeedList();
+      });
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // SIGNAL TOGGLES
+    // ═══════════════════════════════════════════════════════════════
+    $$('.signal-toggle').forEach(toggle => {
+      function doToggle() {
+        const sig = toggle.dataset.signal;
+        const cb  = toggle.querySelector('input[type="checkbox"]');
+        if (state.enabledTypes.has(sig)) {
+          state.enabledTypes.delete(sig);
+          toggle.classList.remove('active');
+          toggle.setAttribute('aria-checked','false');
+          if (cb) cb.checked = false;
+        } else {
+          state.enabledTypes.add(sig);
+          toggle.classList.add('active');
+          toggle.setAttribute('aria-checked','true');
+          if (cb) cb.checked = true;
+        }
+        renderFeedList();
+      }
+      toggle.addEventListener('click', doToggle);
+      toggle.addEventListener('keydown', e => {
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); doToggle(); }
+      });
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // REFRESH BUTTON
+    // ═══════════════════════════════════════════════════════════════
+    $('refresh-btn').addEventListener('click', async () => {
+      const btn = $('refresh-btn');
+      btn.classList.add('spinning');
+      btn.disabled = true;
+      try {
+        await fetch('/api/refresh', { method: 'POST' });
+        // Give backend a moment to collect, then poll
+        await new Promise(r => setTimeout(r, 800));
+        await pollAll();
+        showToast('Data refreshed');
+      } catch {
+        showToast('Refresh failed — is the backend running?');
+      } finally {
+        btn.classList.remove('spinning');
+        btn.disabled = false;
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATIONS + SERVICE WORKER
+    // ═══════════════════════════════════════════════════════════════
+    function urlBase64ToUint8Array(b64) {
+      const pad = '='.repeat((4 - b64.length % 4) % 4);
+      const raw = atob((b64 + pad).replace(/-/g,'+').replace(/_/g,'/'));
+      return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+    }
+
+    async function setupPushAndSW() {
+      const btn = $('push-btn');
+
+      // Register service worker regardless of push support
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register('/sw.js');
+        } catch (err) {
+          console.warn('[EWS] SW registration failed:', err);
+        }
+      }
+
+      // Check push support
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        btn.textContent = '✕ No Push Support';
+        btn.disabled = true;
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+
+      // Check if already subscribed
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        state.pushSubscribed = true;
+        btn.textContent = '● Alerts On';
+        btn.classList.add('active');
+      }
+
+      btn.addEventListener('click', async () => {
+        // Unsubscribe flow
+        if (state.pushSubscribed) {
+          try {
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) await sub.unsubscribe();
+          } catch { /* ignore */ }
+          state.pushSubscribed = false;
+          btn.textContent = '○ Enable Alerts';
+          btn.classList.remove('active');
+          showToast('Push notifications disabled');
+          return;
+        }
+
+        // Subscribe flow
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          showToast('Notification permission denied');
+          return;
+        }
+
+        try {
+          const { publicKey } = await apiFetch('/api/vapid-public-key');
+          if (!publicKey) throw new Error('VAPID key not configured on server');
+
+          const sub = await reg.pushManager.subscribe({
+            userVisibleOnly:      true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey),
+          });
+
+          await fetch('/api/subscribe', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(sub),
+          });
+
+          state.pushSubscribed = true;
+          btn.textContent = '● Alerts On';
+          btn.classList.add('active');
+          showToast('Push notifications enabled');
+        } catch (err) {
+          console.error('[EWS] Push setup error:', err);
+          showToast(`Push failed: ${err.message}`);
+        }
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════════════════════
+    pollAll();
+    setInterval(pollAll, POLL_MS);
+    setupPushAndSW();
+
+  </script>
+
+</body>
+</html>
